@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)">
+<title>Расписание на завтра</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+  }
+  h1 { font-size: 1.25rem; margin: 0 0 .5rem; }
+
+  /* --- Контролы --- */
+  .controls {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin: 1rem 0;
+  }
+  .field { display: flex; flex-direction: column; gap: .25rem; flex: 1 1 12rem; min-width: 0; }
+  .field label { font-size: .8rem; color: #666; }
+  input[type="search"], select, button {
+    padding: .65rem .75rem;
+    font-size: 1rem;
+    width: 100%;
+    border: 1px solid #bbb;
+    border-radius: 8px;
+    background: Field;
+    color: FieldText;
+  }
+  select { padding-right: 2rem; }
+  button {
+    cursor: pointer;
+    background: #2b6cb0;
+    color: #fff;
+    border-color: #2b6cb0;
+    flex: 1 1 12rem;
+    font-weight: 600;
+  }
+  button:active { transform: translateY(1px); }
+
+  /* --- Статус --- */
+  .status {
+    color: #666; font-size: .9rem;
+    margin: .5rem 0 1rem;
+    word-break: break-word;
+  }
+  .error { color: #b00020; }
+
+  /* --- День --- */
+  .day { margin-top: 1.25rem; }
+  .day h2 { font-size: 1.05rem; margin: 0 0 .25rem; }
+  .day .meta { font-size: .8rem; color: #666; margin-bottom: .5rem; word-break: break-word; }
+  .day .meta a { color: inherit; }
+
+  /* --- Таблица (desktop) --- */
+  table { width: 100%; border-collapse: collapse; margin-top: .5rem; }
+  th, td {
+    border: 1px solid #ccc;
+    padding: .4rem .6rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: #f4f4f4; font-weight: 600; }
+  td.num { width: 2.5rem; text-align: center; }
+  td.time { white-space: nowrap; }
+  td.no-aud { text-align: center; }
+  td.no-aud a {
+    color: #888; text-decoration: none;
+    border-bottom: 1px dotted #888;
+    padding: 0 .2rem;
+  }
+  td.no-aud a:hover { color: #b00020; border-bottom-color: #b00020; }
+  .empty { color: #666; font-style: italic; }
+
+  /* --- Мобильная адаптация --- */
+  @media (max-width: 640px) {
+    body { padding: .75rem .75rem calc(.75rem + env(safe-area-inset-bottom)); }
+    h1 { font-size: 1.15rem; }
+
+    .controls {
+      flex-direction: column;
+      align-items: stretch;
+      gap: .6rem;
+    }
+    .field { flex: 1 1 auto; width: 100%; }
+    button { flex: 1 1 auto; width: 100%; padding: .8rem; font-size: 1.05rem; }
+
+    /* Таблица → карточки */
+    table, thead, tbody, tr, th, td { display: block; width: 100%; }
+    thead { display: none; }
+    tbody tr {
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      padding: .5rem .6rem;
+      margin-bottom: .6rem;
+      background: Canvas;
+    }
+    tbody tr + tr { margin-top: .6rem; }
+    td {
+      border: none;
+      padding: .15rem 0;
+      display: flex;
+      gap: .5rem;
+      align-items: baseline;
+      font-size: .95rem;
+    }
+    td::before {
+      content: attr(data-label);
+      flex: 0 0 6.5rem;
+      color: #888;
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+    td.num, td.time, td.no-aud { text-align: left; width: auto; }
+    td.no-aud a { border-bottom-style: solid; }
+
+    /* Номер пары и время — компактнее */
+    td.num::before { content: "Пара"; }
+    td.time::before { content: "Время"; }
+    td.subject::before { content: "Предмет"; }
+    td.teacher::before { content: "Препод."; }
+    td.aud::before { content: "Ауд."; }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    th { background: #2a2a2a; }
+    th, td { border-color: #444; }
+    .status, .day .meta, .field label { color: #aaa; }
+    td.no-aud a { color: #999; border-bottom-color: #999; }
+    td.no-aud a:hover { color: #ff6b6b; border-bottom-color: #ff6b6b; }
+    input[type="search"], select {
+      border-color: #555;
+      background: #1e1e1e;
+      color: #eee;
+    }
+    tbody tr { border-color: #444; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Расписание на завтра</h1>
+
+<div class="controls">
+  <div class="field">
+    <label for="search">Поиск группы</label>
+    <input id="search" type="search" placeholder="например: 105 или ИСП" autocomplete="off" enterkeyhint="search">
+  </div>
+  <div class="field">
+    <label for="group">Группа</label>
+    <select id="group"></select>
+  </div>
+  <button id="load">Показать расписание</button>
+</div>
+
+<div class="status" id="status"></div>
+<div id="result"></div>
+
+<script>
+const API = 'https://kkepik.rub1kub.ru';
+const DEFAULT_GROUP = '105-Д9-3ИСП';
+
+const groupSelect = document.getElementById('group');
+const searchInput = document.getElementById('search');
+const statusEl    = document.getElementById('status');
+const resultEl    = document.getElementById('result');
+
+let allGroups = [];
+
+function parseGroup(name) {
+  const m = name.match(/^([^-]+)-([^-]+)-(\d+)([A-Za-zА-Яа-яЁё]+)$/);
+  if (!m) return null;
+  return { code: m[1], dep: m[2], course: Number(m[3]), spec: m[4].toUpperCase() };
+}
+
+function collapseGroups(names) {
+  const best = new Map();
+  for (const name of names) {
+    const p = parseGroup(name);
+    if (!p) { best.set('raw:' + name, { name, course: -1 }); continue; }
+    const key = `${p.code}-${p.dep}-${p.spec}`;
+    const prev = best.get(key);
+    if (!prev || p.course > prev.course) best.set(key, { name, course: p.course });
+  }
+  return [...best.values()].map(v => v.name).sort((a, b) => a.localeCompare(b, 'ru'));
+}
+
+async function loadGroups() {
+  statusEl.className = 'status';
+  statusEl.textContent = 'Загружаю список групп…';
+  try {
+    const r = await fetch(`${API}/api/v2/catalog`);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+
+    const raw = data.groups || data.entities?.groups || [];
+    const names = raw
+      .map(g => (typeof g === 'string' ? g : (g.name || g.title || '')))
+      .filter(Boolean);
+
+    allGroups = collapseGroups(names);
+    renderOptions(allGroups, DEFAULT_GROUP);
+
+    statusEl.textContent =
+      `Групп: ${names.length} → после схлопывания: ${allGroups.length}`;
+  } catch (e) {
+    statusEl.className = 'status error';
+    statusEl.textContent = 'Не удалось загрузить справочник: ' + e.message;
+    groupSelect.innerHTML = '<option value="">— нет данных —</option>';
+  }
+}
+
+function renderOptions(groups, preselect) {
+  groupSelect.innerHTML = '';
+  if (!groups.length) {
+    groupSelect.innerHTML = '<option value="">— ничего не найдено —</option>';
+    return;
+  }
+  for (const name of groups) {
+    const o = document.createElement('option');
+    o.value = name;
+    o.textContent = name;
+    groupSelect.appendChild(o);
+  }
+  if (preselect && groups.includes(preselect)) groupSelect.value = preselect;
+}
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim().toLowerCase();
+  const filtered = !q ? allGroups : allGroups.filter(g => g.toLowerCase().includes(q));
+  renderOptions(filtered, groupSelect.value);
+});
+
+async function loadSchedule() {
+  const group = groupSelect.value;
+  if (!group) return;
+
+  statusEl.className = 'status';
+  statusEl.textContent = `Запрашиваю расписание для ${group} на завтра…`;
+  resultEl.innerHTML = '';
+
+  const url = `${API}/api/v2/schedule?entity_type=group&entity=${encodeURIComponent(group)}&date=tomorrow`;
+
+  try {
+    const r = await fetch(url);
+    if (r.status === 429) {
+      const retry = r.headers.get('Retry-After') || '?';
+      throw new Error(`Слишком много запросов. Повтори через ${retry} с.`);
+    }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    render(data, group);
+  } catch (e) {
+    statusEl.className = 'status error';
+    statusEl.textContent = 'Ошибка: ' + e.message;
+  }
+}
+
+function render(data, group) {
+  const days = Array.isArray(data.days) ? data.days : [];
+
+  statusEl.className = 'status';
+  const parts = [`Группа: ${group}`, `часовой пояс: ${data.timezone || '—'}`];
+  if (data.range) parts.push(`диапазон: ${data.range.start} … ${data.range.end}`);
+  statusEl.textContent = parts.join(' · ');
+
+  if (!days.length) {
+    resultEl.innerHTML = '<p class="empty">Сервер не вернул ни одного дня.</p>';
+    return;
+  }
+  resultEl.innerHTML = days.map(renderDay).join('');
+}
+
+function renderDay(day) {
+  const date = day.date || '—';
+  const status = day.status || 'unknown';
+  const sourceUrl = day.source?.url;
+  const revision = day.source?.revision;
+
+  const metaBits = [`status: ${status}`];
+  if (revision != null) metaBits.push(`редакция: ${revision}`);
+  if (sourceUrl) {
+    metaBits.push(
+      `источник: <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener">PDF/Excel</a>`
+    );
+  }
+
+  const lessons = Array.isArray(day.lessons) ? day.lessons : [];
+
+  let body;
+  if (status === 'missing') {
+    body = '<p class="empty">Данных на эту дату нет (missing). Это не значит, что пар не было.</p>';
+  } else if (status === 'no_lessons') {
+    body = '<p class="empty">Занятий по расписанию нет (no_lessons).</p>';
+  } else if (status === 'entity_not_found') {
+    body = '<p class="empty">Группа не найдена в источнике на этот день.</p>';
+  } else if (!lessons.length) {
+    body = '<p class="empty">Занятия не указаны.</p>';
+  } else {
+    const rows = lessons.map(l => renderLessonRow(l, sourceUrl)).join('');
+    body = `
+      <table>
+        <thead>
+          <tr><th>#</th><th>Время</th><th>Предмет</th><th>Преподаватель</th><th>Ауд.</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  return `
+    <section class="day">
+      <h2>${escapeHtml(date)}</h2>
+      <div class="meta">${metaBits.join(' · ')}</div>
+      ${body}
+    </section>
+  `;
+}
+
+function renderLessonRow(l, sourceUrl) {
+  const num   = l.pair_number ?? '';
+  const time  = formatTime(l.start_time, l.end_time);
+  const subj  = l.subject ?? '';
+  const teach = l.teacher ?? '';
+  const sub   = l.subgroup ? ` (подгруппа ${l.subgroup})` : '';
+  const aud   = renderAudience(l, sourceUrl);
+
+  return `<tr>
+    <td class="num" data-label="Пара">${escapeHtml(String(num))}</td>
+    <td class="time" data-label="Время">${escapeHtml(time)}</td>
+    <td class="subject" data-label="Предмет">${escapeHtml(subj)}${escapeHtml(sub)}</td>
+    <td class="teacher" data-label="Препод.">${escapeHtml(teach)}</td>
+    <td class="aud ${aud.cls}" data-label="Ауд.">${aud.html}</td>
+  </tr>`;
+}
+
+function renderAudience(l, sourceUrl) {
+  const list = (l.audiences && l.audiences.length)
+    ? l.audiences
+    : (l.audience ? [l.audience] : []);
+
+  if (list.length) {
+    return { html: escapeHtml(list.join(', ')), cls: '' };
+  }
+
+  const tip = l.association_status
+    ? `В API не распознано (${l.association_status}). Открыть источник`
+    : 'В API пусто. Открыть источник';
+
+  if (sourceUrl) {
+    return {
+      html: `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener"
+                title="${escapeHtml(tip)}">PDF</a>`,
+      cls: 'no-aud'
+    };
+  }
+
+  return {
+    html: `<span title="${escapeHtml(tip)}">—</span>`,
+    cls: 'no-aud'
+  };
+}
+
+function formatTime(start, end) {
+  if (!start && !end) return '';
+  if (start && end)   return `${start}–${end}`;
+  return start || end;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+document.getElementById('load').addEventListener('click', loadSchedule);
+loadGroups().then(() => loadSchedule());
+</script>
+</body>
+</html>
