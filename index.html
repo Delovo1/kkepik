@@ -48,7 +48,6 @@
   }
   button.primary:active { transform: translateY(1px); }
 
-  /* ---------- «Дополнительно» ---------- */
   details.extra {
     border: 1px solid #ddd; border-radius: 8px;
     margin: .25rem 0 .75rem;
@@ -228,7 +227,13 @@
 
 <script>
 const API = 'https://kkepik.rub1kub.ru';
-const DEFAULT_GROUP = '105-Д9-3ИСП';
+
+const LS_KEYS = {
+  group:   'kkepik.group',
+  teacher: 'kkepik.teacher',
+  mode:    'kkepik.mode',
+  date:    'kkepik.date',
+};
 
 const bannerEl    = document.getElementById('banner');
 const statusEl    = document.getElementById('status');
@@ -284,6 +289,9 @@ function humanDate(iso) {
   const [y,m,d] = iso.split('-');
   return `${d}.${m}.${y}`;
 }
+function lsGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
+function lsSet(key, val) { try { localStorage.setItem(key, val); } catch {} }
+function lsDel(key) { try { localStorage.removeItem(key); } catch {} }
 
 // ---------- бейдж в «Дополнительно» ----------
 function updateExtraBadge() {
@@ -312,6 +320,8 @@ function switchMode(newMode) {
   fieldGroup.hidden   = !isGroup;
   fieldSelect.hidden  = !isGroup;
   fieldTeacher.hidden = isGroup;
+
+  lsSet(LS_KEYS.mode, mode);
 }
 
 // ---------- загрузка справочника ----------
@@ -328,7 +338,21 @@ async function loadCatalog() {
       .map(g => (typeof g === 'string' ? g : (g.name || g.title || '')))
       .filter(Boolean);
     allGroups = collapseGroups(names);
-    renderGroupOptions(allGroups, DEFAULT_GROUP);
+
+    // Какую группу выбрать: из localStorage, иначе первую из списка
+    const savedGroup = lsGet(LS_KEYS.group);
+    let initialGroup = (savedGroup && allGroups.includes(savedGroup))
+      ? savedGroup
+      : allGroups[0];
+
+    // Если сохранённая группа выпала при схлопывании — вернём её в список
+    if (savedGroup && !allGroups.includes(savedGroup)) {
+      allGroups.push(savedGroup);
+      allGroups.sort((a, b) => a.localeCompare(b, 'ru'));
+      initialGroup = savedGroup;
+    }
+
+    renderGroupOptions(allGroups, initialGroup);
 
     const rawTeachers = data.teachers || data.entities?.teachers || [];
     allTeachers = rawTeachers
@@ -336,8 +360,27 @@ async function loadCatalog() {
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b, 'ru'));
 
+    // Восстанавливаем преподавателя
+    const savedTeacher = lsGet(LS_KEYS.teacher);
+    if (savedTeacher) {
+      teacherInput.value = savedTeacher;
+      teacherInput.dataset.prev = savedTeacher;
+    }
+
+    // Синхронизируем поле поиска с селектом
     searchInput.value = groupSelect.value || '';
     searchInput.dataset.prev = searchInput.value;
+
+    // Восстанавливаем сохранённый режим
+    const savedMode = lsGet(LS_KEYS.mode) || 'group';
+    switchMode(savedMode === 'teacher' ? 'teacher' : 'group');
+
+    // Восстанавливаем сохранённую дату
+    const savedDate = lsGet(LS_KEYS.date);
+    if (savedDate) {
+      dateInput.value = savedDate;
+      updateExtraBadge();
+    }
 
     statusEl.textContent =
       `Групп: ${names.length} → ${allGroups.length}. Преподавателей: ${allTeachers.length}.`;
@@ -388,10 +431,12 @@ groupSelect.addEventListener('change', () => {
   searchInput.value = groupSelect.value;
   searchInput.dataset.prev = groupSelect.value;
   searchInput.classList.remove('mismatch');
+  lsSet(LS_KEYS.group, groupSelect.value);
 });
 
 // ---------- автодополнение преподавателя ----------
 let acActiveIdx = -1;
+let teacherSaveTimer = null;
 
 teacherInput.addEventListener('focus', () => {
   teacherInput.dataset.prev = teacherInput.value;
@@ -404,16 +449,28 @@ teacherInput.addEventListener('blur', () => {
     if (!teacherInput.value.trim()) {
       teacherInput.value = teacherInput.dataset.prev || '';
     }
+    const val = teacherInput.value.trim();
+    if (val) lsSet(LS_KEYS.teacher, val);
   }, 150);
 });
 
 teacherInput.addEventListener('input', () => {
   const q = teacherInput.value.trim().toLowerCase();
-  if (!q) { hideAC(); return; }
-  const matches = allTeachers
-    .filter(t => t.toLowerCase().includes(q))
-    .slice(0, 30);
-  showAC(matches);
+  if (!q) {
+    hideAC();
+  } else {
+    const matches = allTeachers
+      .filter(t => t.toLowerCase().includes(q))
+      .slice(0, 30);
+    showAC(matches);
+  }
+  // Сохраняем через 400 мс после остановки ввода
+  clearTimeout(teacherSaveTimer);
+  teacherSaveTimer = setTimeout(() => {
+    const val = teacherInput.value.trim();
+    if (val) lsSet(LS_KEYS.teacher, val);
+    else lsDel(LS_KEYS.teacher);
+  }, 400);
 });
 
 teacherInput.addEventListener('keydown', (e) => {
@@ -462,6 +519,7 @@ function pickAC(value) {
   teacherInput.value = value;
   teacherInput.dataset.prev = value;
   hideAC();
+  lsSet(LS_KEYS.teacher, value);
 }
 
 // ---------- кнопки ----------
@@ -480,17 +538,25 @@ document.getElementById('load').addEventListener('click', () => {
     searchInput.value = groupSelect.value;
     searchInput.dataset.prev = groupSelect.value;
     searchInput.classList.remove('mismatch');
+    lsSet(LS_KEYS.group, groupSelect.value);
+  } else {
+    const t = teacherInput.value.trim();
+    if (t) lsSet(LS_KEYS.teacher, t);
+    else lsDel(LS_KEYS.teacher);
   }
   loadSchedule();
 });
 
 dateReset.addEventListener('click', () => {
   dateInput.value = '';
+  lsDel(LS_KEYS.date);
   updateExtraBadge();
   loadSchedule();
 });
 
 dateInput.addEventListener('change', () => {
+  if (dateInput.value) lsSet(LS_KEYS.date, dateInput.value);
+  else lsDel(LS_KEYS.date);
   updateExtraBadge();
   loadSchedule();
 });
