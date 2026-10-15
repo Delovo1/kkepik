@@ -1,0 +1,20 @@
+{
+  "name": "Расписание ККЭП",
+  "short_name": "ККЭП",
+  "description": "Расписание занятий Краснодарского колледжа электронного приборостроения",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#2b6cb0",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

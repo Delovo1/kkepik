@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ККЭП">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
 <title>Расписание ККЭП</title>
 <style>
   :root { color-scheme: light dark; }
@@ -19,7 +25,7 @@
   }
   h1 { font-size: 1.25rem; margin: 0 0 .5rem; }
 
-  .tabs { display: flex; gap: .25rem; margin: 1rem 0 .5rem; }
+  .tabs { display: flex; gap: .25rem; margin: .75rem 0 .5rem; }
   .tab {
     flex: 1 1 0; padding: .55rem .75rem; font-size: .95rem;
     border: 1px solid #bbb; border-radius: 8px; background: transparent;
@@ -27,10 +33,10 @@
   }
   .tab.active { background: #2b6cb0; color: #fff; border-color: #2b6cb0; font-weight: 600; }
 
-  .controls { display: flex; gap: .5rem; flex-wrap: wrap; align-items: flex-end; margin: .5rem 0 1rem; }
+  .controls { display: flex; gap: .5rem; flex-wrap: wrap; align-items: flex-end; margin: .5rem 0 .75rem; }
   .field { display: flex; flex-direction: column; gap: .25rem; flex: 1 1 12rem; min-width: 0; }
   .field label { font-size: .8rem; color: #666; }
-  input[type="search"], input[type="text"], select, button {
+  input[type="search"], input[type="text"], input[type="date"], select, button {
     padding: .65rem .75rem; font-size: 1rem; width: 100%;
     border: 1px solid #bbb; border-radius: 8px;
     background: Field; color: FieldText;
@@ -42,11 +48,46 @@
   }
   button.primary:active { transform: translateY(1px); }
 
-  /* Подсветка рассинхрона поля поиска и селекта */
+  /* ---------- «Дополнительно» ---------- */
+  details.extra {
+    border: 1px solid #ddd; border-radius: 8px;
+    margin: .25rem 0 .75rem;
+    background: transparent;
+  }
+  details.extra > summary {
+    cursor: pointer; padding: .55rem .8rem;
+    font-size: .9rem; color: #555;
+    list-style: none; user-select: none;
+    display: flex; align-items: center; gap: .4rem;
+  }
+  details.extra > summary::-webkit-details-marker { display: none; }
+  details.extra > summary::before {
+    content: "▸"; display: inline-block;
+    transition: transform .15s ease;
+    font-size: .8rem;
+  }
+  details.extra[open] > summary::before { transform: rotate(90deg); }
+  details.extra > summary .badge {
+    margin-left: auto; font-size: .8rem;
+    color: #2b6cb0; font-weight: 600;
+  }
+  details.extra .body {
+    padding: 0 .8rem .8rem;
+    display: flex; gap: .5rem; flex-wrap: wrap; align-items: flex-end;
+  }
+  details.extra .body .field { flex: 1 1 12rem; }
+  details.extra .body button {
+    cursor: pointer; flex: 0 0 auto; min-width: auto;
+    padding: .65rem .9rem; font-size: .9rem;
+    background: transparent; color: inherit;
+    border: 1px solid #bbb; border-radius: 8px;
+  }
+  details.extra .body button:hover { background: rgba(127,127,127,.08); }
+
   input.mismatch { border-color: #e0a800; background: #fff9e6; }
 
   .banner {
-    padding: .65rem .8rem; border-radius: 8px; margin: .5rem 0 1rem;
+    padding: .65rem .8rem; border-radius: 8px; margin: .25rem 0 .75rem;
     font-size: .9rem; line-height: 1.4;
   }
   .banner.info  { background: #eaf3fb; color: #1a365d; border: 1px solid #b8d4ef; }
@@ -56,7 +97,7 @@
   .status { color: #666; font-size: .85rem; margin: .25rem 0 .75rem; word-break: break-word; }
   .error { color: #b00020; }
 
-  .day { margin-top: 1rem; }
+  .day { margin-top: .75rem; }
   .day h2 { font-size: 1.05rem; margin: 0 0 .25rem; }
   .day .meta { font-size: .8rem; color: #666; margin-bottom: .5rem; word-break: break-word; }
   .day .meta a { color: inherit; }
@@ -85,14 +126,22 @@
     .ac-item:hover, .ac-item.active { background: #23354a; }
     .ac-list { border-color: #555; }
     input.mismatch { background: #3a2f0a; border-color: #b58a00; }
+    details.extra { border-color: #444; }
+    details.extra > summary { color: #aaa; }
+    details.extra > summary .badge { color: #7bb3e8; }
+    details.extra .body button { border-color: #555; }
   }
 
   @media (max-width: 640px) {
     body { padding: .75rem .75rem calc(.75rem + env(safe-area-inset-bottom)); }
     h1 { font-size: 1.15rem; }
-    .controls { flex-direction: column; align-items: stretch; gap: .6rem; }
+    .controls { flex-direction: column; align-items: stretch; gap: .5rem; }
     .field { flex: 1 1 auto; width: 100%; }
     button.primary { flex: 1 1 auto; width: 100%; padding: .8rem; font-size: 1.05rem; }
+
+    details.extra .body { flex-direction: column; align-items: stretch; }
+    details.extra .body .field { flex: 1 1 auto; width: 100%; }
+    details.extra .body button { width: 100%; }
 
     table, thead, tbody, tr, th, td { display: block; width: 100%; }
     thead { display: none; }
@@ -118,7 +167,7 @@
     th, td { border-color: #444; }
     .status, .day .meta, .field label { color: #aaa; }
     td.no-aud a { color: #999; border-bottom-color: #999; }
-    input[type="search"], input[type="text"], select {
+    input[type="search"], input[type="text"], input[type="date"], select {
       border-color: #555; background: #1e1e1e; color: #eee;
     }
     .banner.info  { background: #16283a; color: #cfe2f3; border-color: #2c4a6b; }
@@ -159,6 +208,20 @@
   <button class="primary" id="load">Показать расписание</button>
 </div>
 
+<details class="extra" id="extra">
+  <summary>
+    Дополнительно
+    <span class="badge" id="extra-badge" hidden></span>
+  </summary>
+  <div class="body">
+    <div class="field">
+      <label for="date">Дата (оставь пустым — завтра, при отсутствии — сегодня)</label>
+      <input id="date" type="date">
+    </div>
+    <button id="date-reset" title="Сбросить и вернуться к «завтра → сегодня»">Сбросить</button>
+  </div>
+</details>
+
 <div id="banner"></div>
 <div class="status" id="status"></div>
 <div id="result"></div>
@@ -174,6 +237,9 @@ const groupSelect = document.getElementById('group');
 const searchInput = document.getElementById('search');
 const teacherInput= document.getElementById('teacher');
 const acList      = document.getElementById('ac-list');
+const dateInput   = document.getElementById('date');
+const dateReset   = document.getElementById('date-reset');
+const extraBadge  = document.getElementById('extra-badge');
 
 const tabGroup   = document.getElementById('tab-group');
 const tabTeacher = document.getElementById('tab-teacher');
@@ -219,6 +285,17 @@ function humanDate(iso) {
   return `${d}.${m}.${y}`;
 }
 
+// ---------- бейдж в «Дополнительно» ----------
+function updateExtraBadge() {
+  if (dateInput.value) {
+    extraBadge.textContent = `дата: ${humanDate(dateInput.value)}`;
+    extraBadge.hidden = false;
+  } else {
+    extraBadge.hidden = true;
+    extraBadge.textContent = '';
+  }
+}
+
 // ---------- переключение режимов ----------
 tabGroup.addEventListener('click', () => switchMode('group'));
 tabTeacher.addEventListener('click', () => switchMode('teacher'));
@@ -232,8 +309,6 @@ function switchMode(newMode) {
   tabGroup.setAttribute('aria-selected', String(isGroup));
   tabTeacher.setAttribute('aria-selected', String(!isGroup));
 
-  // В режиме «Группа» видно: поиск группы + селект группы.
-  // В режиме «Преподаватель» видно: только поле преподавателя.
   fieldGroup.hidden   = !isGroup;
   fieldSelect.hidden  = !isGroup;
   fieldTeacher.hidden = isGroup;
@@ -261,7 +336,6 @@ async function loadCatalog() {
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b, 'ru'));
 
-    // Синхронизируем поле поиска с селектом после загрузки справочника
     searchInput.value = groupSelect.value || '';
     searchInput.dataset.prev = searchInput.value;
 
@@ -293,7 +367,6 @@ searchInput.addEventListener('input', () => {
   const filtered = !q ? allGroups : allGroups.filter(g => g.toLowerCase().includes(q));
   renderGroupOptions(filtered, groupSelect.value);
 
-  // Подсветка, если набранное не совпадает с выбранной группой
   const typed = searchInput.value.trim().toLowerCase();
   const selected = (groupSelect.value || '').toLowerCase();
   searchInput.classList.toggle('mismatch', !!typed && typed !== selected);
@@ -307,12 +380,10 @@ searchInput.addEventListener('focus', () => {
 });
 
 searchInput.addEventListener('blur', () => {
-  // Всегда приводим поле к актуальной выбранной группе
   searchInput.value = groupSelect.value || searchInput.dataset.prev || '';
   searchInput.classList.remove('mismatch');
 });
 
-// Когда меняется селект — синхронизируем строку поиска
 groupSelect.addEventListener('change', () => {
   searchInput.value = groupSelect.value;
   searchInput.dataset.prev = groupSelect.value;
@@ -322,16 +393,13 @@ groupSelect.addEventListener('change', () => {
 // ---------- автодополнение преподавателя ----------
 let acActiveIdx = -1;
 
-// При фокусе — очищаем поле, чтобы сразу печатать
 teacherInput.addEventListener('focus', () => {
   teacherInput.dataset.prev = teacherInput.value;
   teacherInput.value = '';
   hideAC();
 });
 
-// При потере фокуса без ввода — вернуть прежнее значение
 teacherInput.addEventListener('blur', () => {
-  // небольшая задержка, чтобы клик по подсказке успел сработать
   setTimeout(() => {
     if (!teacherInput.value.trim()) {
       teacherInput.value = teacherInput.dataset.prev || '';
@@ -396,7 +464,7 @@ function pickAC(value) {
   hideAC();
 }
 
-// ---------- кнопка «Показать расписание» ----------
+// ---------- кнопки ----------
 document.getElementById('load').addEventListener('click', () => {
   if (mode === 'group') {
     const typed = searchInput.value.trim();
@@ -408,9 +476,7 @@ document.getElementById('load').addEventListener('click', () => {
       } else if (partial.length === 1) {
         groupSelect.value = partial[0];
       }
-      // если совпадений много — оставляем значение селекта
     }
-    // Синхронизируем поле поиска с итоговым выбором
     searchInput.value = groupSelect.value;
     searchInput.dataset.prev = groupSelect.value;
     searchInput.classList.remove('mismatch');
@@ -418,7 +484,18 @@ document.getElementById('load').addEventListener('click', () => {
   loadSchedule();
 });
 
-// ---------- запрос дня с фолбэком ----------
+dateReset.addEventListener('click', () => {
+  dateInput.value = '';
+  updateExtraBadge();
+  loadSchedule();
+});
+
+dateInput.addEventListener('change', () => {
+  updateExtraBadge();
+  loadSchedule();
+});
+
+// ---------- запрос дня ----------
 async function fetchDay(entityType, entity, date) {
   const url = `${API}/api/v2/schedule?entity_type=${entityType}&entity=${encodeURIComponent(entity)}&date=${date}`;
   const r = await fetch(url);
@@ -454,13 +531,28 @@ async function loadSchedule() {
 
   bannerEl.innerHTML = '';
   resultEl.innerHTML = '';
-  statusEl.className = 'status';
-  statusEl.textContent = `Запрашиваю расписание (${label})…`;
 
   const today = todayISO();
   const tomorrow = plusDaysISO(today, 1);
+  const userDate = dateInput.value;
 
   try {
+    if (userDate) {
+      statusEl.className = 'status';
+      statusEl.textContent = `Запрашиваю расписание (${label}) на ${humanDate(userDate)}…`;
+      const data = await fetchDay(entityType, entity, userDate);
+      if (dayHasLessons(data)) {
+        renderBanner('info', `Расписание на выбранную дату (${humanDate(userDate)}).`);
+      } else {
+        renderBanner('muted', `На выбранную дату (${humanDate(userDate)}) расписания нет.`);
+      }
+      render(data, label);
+      return;
+    }
+
+    statusEl.className = 'status';
+    statusEl.textContent = `Запрашиваю расписание (${label})…`;
+
     const tomorrowData = await fetchDay(entityType, entity, tomorrow);
 
     if (dayHasLessons(tomorrowData)) {
@@ -587,8 +679,16 @@ function formatTime(start, end) {
   return start || end;
 }
 
+// ---------- PWA ----------
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
 // ---------- init ----------
 switchMode('group');
+updateExtraBadge();
 loadCatalog().then(() => loadSchedule());
 </script>
 </body>
